@@ -1,0 +1,304 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8" />
+    <title>Gamedev Canvas Workshop</title>
+    <style>
+    	* { padding: 0; margin: 0; }
+    	canvas { background: #eee; display: block; margin: 0 auto; }
+    </style>
+</head>
+<body>
+
+<canvas id="myCanvas" width="1000" height="600"></canvas>
+
+<script>
+    
+    window.onerror = function(e) {
+        alert(e)
+        alert(e.message)
+        
+    }
+    
+    
+    function game() {
+        this.canvas = document.getElementById("myCanvas")
+        this.ctx = this.canvas.getContext("2d")
+        
+        this.canvas.width = window.innerWidth
+        this.canvas.height = window.innerHeight
+        
+        this.x = this.canvas.width / 2
+        this.y = this.canvas.height / 2
+        
+        this.rightPressed = false
+        this.leftPressed = false
+        this.downPressed = false
+        this.upPressed = false
+        
+        this.arrowMoving = []
+        this.arrowMoving.push({direction: "left"})
+        
+        this.stage = 'title screen'
+        this.draw()
+        
+        this.radius = 10
+        
+        this.score = 0
+        
+        this.canvas.addEventListener('click', this.click.bind(this), false)
+        document.addEventListener("keydown", this.down.bind(this), false)
+        document.addEventListener("keyup", this.up.bind(this), false)
+        document.addEventListener("visibilitychange", this.hidden.bind(this))
+        this.refresh = setInterval(this.draw.bind(this), 10)
+        
+    }
+    game.prototype = {
+        isTouching: function(a, b, c, d) {
+            var e = window.event;
+            var x = e.pageX
+            var y = e.pageY
+            var cords = [a, b, c, d]
+            if (x<cords[2] + cords[0] && x>cords[0] && y>cords[1] && y<cords[3] + cords[1]) {
+                return true
+            } else {
+                return false
+            }
+        },
+        click: function() {
+            if (this.stage == 'title screen') {
+                if (this.isTouching(20, 20, 500, 600)) {
+                    this.stage = 'play screen'
+                }
+            }
+        },
+        titleScreen: function() {
+            this.ctx.beginPath()
+            this.ctx.rect(20, 20, 500, 600)
+            this.ctx.fillStyle = "green"
+            this.ctx.stroke()
+            this.ctx.fill()
+            this.ctx.font = "30px Arial";
+            this.ctx.fillStyle = "black";
+            this.ctx.fillText("Play", 100, 200);
+        },
+        arrow: function(a, b, filled) {
+            var ctx = this.ctx
+            ctx.beginPath()
+            ctx.moveTo(a, b)
+            ctx.lineTo(a-50, b)
+            ctx.lineTo(a-50, b+20)
+            ctx.lineTo(a-85, b-8)
+            ctx.lineTo(a-50, b-35)
+            ctx.lineTo(a-50, b-15)
+            ctx.lineTo(a, b-15)
+            ctx.moveTo(a, b)
+            if (filled == 'green') {
+                ctx.fillStyle = 'yellow'
+            } else if (filled) {
+                ctx.fillStyle = "red"
+            } else {
+                ctx.fillStyle = "black"
+            }
+            ctx.stroke()
+            ctx.fill()
+        },
+        movingArrows: function() {
+            var left = false, right = false, up = false, down = false, remove = false
+            if (this.rightPressed) {
+                right = true
+            }
+            if (this.downPressed) {
+                down = true
+            }
+            if (this.leftPressed) {
+                left = true
+            }
+            if (this.upPressed) {
+                up = true
+            }
+            var newArrows = []
+            for (var i=0; i<this.arrowMoving.length; i++) {
+                if (this.arrowMoving[i].direction == 'left') {
+                    if (! this.arrowMoving[i].x) {
+                        this.arrowMoving[i].x = 300
+                    }
+                    this.arrow(this.arrowMoving[i].x, 325, 'green')
+                    this.arrowMoving[i].x += 4
+                    if (left && 500-25<this.arrowMoving[i].x && this.arrowMoving[i].x<500+50) {
+                        var remove = true
+                        var minusPoints = Math.abs(this.arrowMoving[i].x - 500)
+                        this.changeScore(300 - minusPoints)
+                    }
+                    
+                    if (this.arrowMoving[i].x < 550 && !remove) {
+                        newArrows.push(this.arrowMoving[i])
+                    }
+                } else if (this.arrowMoving[i].direction == 'up') {
+                    if (! this.arrowMoving[i].y) {
+                        this.arrowMoving[i].y = 0
+                    }
+                    this.ctx.rotate(90 * Math.PI / 180)
+                    this.arrow(this.arrowMoving[i].y, -625, 'green')
+                    this.ctx.rotate(-(90 * Math.PI / 180))
+                    this.arrowMoving[i].y += 4
+                    if (up && 200-25<this.arrowMoving[i].y && this.arrowMoving[i].y<200+50) {
+                        var remove = true
+                        var minusPoints = Math.abs(this.arrowMoving[i].y - 500)
+                        this.changeScore(300 - minusPoints)
+                    }
+                    
+                    if (this.arrowMoving[i].y < 250 && !remove) {
+                        newArrows.push(this.arrowMoving[i])
+                    }
+                } else if (this.arrowMoving[i].direction == 'right') {
+                    if (! this.arrowMoving[i].x) {
+                        this.arrowMoving[i].x = -975
+                    }
+                    this.ctx.rotate(180 * Math.PI / 180)
+                    this.arrow(this.arrowMoving[i].x, -315, 'green')
+                    this.ctx.rotate(-(180 * Math.PI / 180))
+                    this.arrowMoving[i].x += 4
+                    if (right && -775-25<this.arrowMoving[i].x && this.arrowMoving[i].x<-775+50) {
+                        var remove = true
+                        var minusPoints = Math.abs(this.arrowMoving[i].x + 775)
+                        this.changeScore(300 - minusPoints)
+                    }
+                    
+                    if (this.arrowMoving[i].x < -725 && !remove) {
+                        newArrows.push(this.arrowMoving[i])
+                    }
+                } else if (this.arrowMoving[i].direction == 'down') {
+                    if (! this.arrowMoving[i].y) {
+                        this.arrowMoving[i].y =-645
+                    }
+                    this.ctx.rotate(90 * 3 * Math.PI / 180)
+                    this.arrow(this.arrowMoving[i].y, 640, 'green')
+                    this.ctx.rotate(90 * Math.PI / 180)
+                    this.arrowMoving[i].y += 4
+                    if (down && -455-25<this.arrowMoving[i].y && this.arrowMoving[i].y<-455+50) {
+                        var remove = true
+                        var minusPoints = Math.abs(this.arrowMoving[i].y + 455)
+                        this.changeScore(300 - minusPoints)
+                    }
+                    
+                    if (this.arrowMoving[i].y < -395 && !remove) {
+                        newArrows.push(this.arrowMoving[i])
+                    }
+                }
+                
+                
+            }
+            this.arrowMoving = newArrows
+        },
+        playScreen: function() {
+            var left = false, right = false, up = false, down = false
+            if (this.rightPressed) {
+                right = true
+            }
+            if (this.downPressed) {
+                down = true
+            }
+            if (this.leftPressed) {
+                left = true
+            }
+            if (this.upPressed) {
+                up = true
+            }
+            this.writeScore()
+            
+            this.arrow(500, 325, left) //left
+            this.ctx.rotate(90 * Math.PI / 180)
+            this.arrow(200, -625, up) //up
+            this.ctx.rotate(90 * Math.PI / 180)
+            this.arrow(-775, -315, right) //right
+            this.ctx.rotate(90 * Math.PI / 180)
+            this.arrow(-455, 640, down) //down
+            this.ctx.rotate(90 * Math.PI / 180)
+            
+            
+            this.movingArrows()
+        },
+        renderBall: function() {
+            var ctx = this.ctx
+            ctx.beginPath()
+            ctx.arc(this.x, this.y, this.radius, 0, Math.PI*2, false)
+            ctx.fillStyle = "green"
+            ctx.fill()
+            ctx.closePath()
+        },
+        draw: function() {
+            this.clear()
+            if (this.stage == 'title screen') {
+                this.titleScreen()
+            } else if (this.stage == 'play screen') {
+                this.playScreen()
+            } else {
+                this.renderBall()
+            }
+        },
+        clear: function() {
+            this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+        },
+        hidden: function() {
+            if (document.visibilityState == 'hidden') {
+                this.leftPressed = false
+                this.rightPressed = false
+                this.downPressed = false
+                this.upPressed = false
+            }
+        },
+        up: function(e) {
+            var key = e.key
+            if (key == 'ArrowUp') {
+                this.upPressed = false
+            } else if (key == 'ArrowDown') {
+                this.downPressed = false
+            } else if (key == 'ArrowRight') {
+                this.rightPressed = false
+            } else if (key == 'ArrowLeft') {
+                this.leftPressed = false
+            }
+        },
+        down: function(e) {
+            var key = e.key
+            if (key == 'ArrowUp') {
+                this.upPressed = true
+            } else if (key == 'ArrowDown') {
+                this.downPressed = true
+            } else if (key == 'ArrowRight') {
+                this.rightPressed = true
+            } else if (key == 'ArrowLeft') {
+                this.leftPressed = true
+            }
+        },
+        changeScore: function(w) {
+            var a = 0
+            var q = this.score + w
+            var v = setInterval(() => {
+                if (a == 9) {
+                    clearInterval(v)
+                }
+                a++
+                this.score += Math.round(w / 10)
+            }, 40)
+            //if (q > localStorage.getItem('highScore')) {
+            //    localStorage.setItem('highScore', q)
+            //}
+        },
+        writeScore: function() {
+            this.ctx.font = "30px Arial";
+            this.ctx.fillStyle = "black";
+            this.ctx.fillText("Score: " + this.score, 30, 50);
+            //this.ctx.fillText("High Score: " + localStorage.getItem('highScore'), 30, 100);
+        }
+        
+        
+    }
+    new game()
+    
+    
+</script>
+
+</body>
+</html>
