@@ -19,14 +19,27 @@
         alert(e.message)
         
     }
+    /**
+    TODOs
+    Add Calibration screen
+    Add play/pause button when playing
+    Add restart button when playing
+    Add button to go back to the main menu
+    Add button to playback after recording
+    Download filename in accordance to uploaded audio file name
+    Add button to upload game .fgh file once game start pressed. The Calibration button should also be on this screen
+    Support for video playing in the background?
+    Minus points for missing arrow
+    Ranking screen with amount missed and average amount of points
     
+    Just a better UI in general. Make it look prettier
+    */
     
-    function game() {
-        this.canvas = document.getElementById("myCanvas")
+    function game(canvas) {
+        this.canvas = canvas
         this.ctx = this.canvas.getContext("2d")
         
-        this.canvas.width = window.innerWidth
-        this.canvas.height = window.innerHeight
+        this.resizeCanvas()
         
         this.x = this.canvas.width / 2
         this.y = this.canvas.height / 2
@@ -37,19 +50,40 @@
         this.upPressed = false
         
         this.arrowMoving = []
-        this.arrowMoving.push({direction: "left"})
+        //this.arrowMoving.push({direction: "left"})
+        
+        this.arrowCords = {"left": {"x": 500, "y": 325},
+                           "up": {"x": 200, "y": -625},
+                           "right": {"x": -775, "y": -315},
+                           "down": {"x": -455, "y": 640},
+                           "travelDistance": 200
+                          }
+        this.safeZone = 25
+        
+        
         
         this.stage = 'title screen'
         this.draw()
         
         this.radius = 10
         
+        this.audio = {"src": null, "data": null, "element": document.createElement('audio'), "selected": false}
+        this.recording = false
+        this.data = {
+            "recording": {
+                "keys": []
+            }
+        }
+        this.extension = 'fgh' // The extension of the save/load file. Should I have a different name?
+        this.audioLoaded = false
+        
         this.score = 0
         
         this.canvas.addEventListener('click', this.click.bind(this), false)
         document.addEventListener("keydown", this.down.bind(this), false)
         document.addEventListener("keyup", this.up.bind(this), false)
-        document.addEventListener("visibilitychange", this.hidden.bind(this))
+        document.addEventListener("visibilitychange", this.hidden.bind(this), false)
+        window.addEventListener('resize', this.resizeCanvas.bind(this), false)
         this.refresh = setInterval(this.draw.bind(this), 10)
         
     }
@@ -67,20 +101,43 @@
         },
         click: function() {
             if (this.stage == 'title screen') {
-                if (this.isTouching(20, 20, 500, 600)) {
+                if (this.isTouching(20, 20, (this.canvas.width / 2) - 75, this.canvas.height - 50)) {
                     this.stage = 'play screen'
+                    this.ask4File()
+                } else if (this.isTouching((this.canvas.width / 2) -25, 20, this.canvas.width - 700, this.canvas.height - 50)) {
+                    this.stage = 'create screen'
+                }
+            } else if (this.stage == 'create screen') {
+                if (! this.audio.selected && this.isTouching(20, 20, 200, 50)) {
+                    this.chooseAudio()
+                } else if (this.audio.selected && this.isTouching(20, 20, 150, 50)) {
+                    if (this.recording) {
+                        this.stopRecording()
+                    } else {
+                        this.record()
+                    }
+                } else if (this.audio.selected && this.isTouching(175, 20, 150, 50)) {
+                    this.save()
                 }
             }
         },
         titleScreen: function() {
             this.ctx.beginPath()
-            this.ctx.rect(20, 20, 500, 600)
+            this.ctx.rect(20, 20, (this.canvas.width / 2) - 75, this.canvas.height - 50)
             this.ctx.fillStyle = "green"
             this.ctx.stroke()
             this.ctx.fill()
             this.ctx.font = "30px Arial";
             this.ctx.fillStyle = "black";
-            this.ctx.fillText("Play", 100, 200);
+            this.ctx.fillText("Play", (this.canvas.width / 2) - 400, (this.canvas.height / 2));
+            this.ctx.beginPath()
+            this.ctx.rect((this.canvas.width / 2) -25, 20, this.canvas.width - 700, this.canvas.height - 50)
+            this.ctx.fillStyle = "yellow"
+            this.ctx.stroke()
+            this.ctx.fill()
+            this.ctx.font = "30px Arial";
+            this.ctx.fillStyle = "black";
+            this.ctx.fillText("Create", (this.canvas.width / 2) + 250, (this.canvas.height / 2));
         },
         arrow: function(a, b, filled) {
             var ctx = this.ctx
@@ -119,79 +176,102 @@
             }
             var newArrows = []
             for (var i=0; i<this.arrowMoving.length; i++) {
+                var remove = false
                 if (this.arrowMoving[i].direction == 'left') {
                     if (! this.arrowMoving[i].x) {
-                        this.arrowMoving[i].x = 300
+                        this.arrowMoving[i].x = this.arrowCords.left.x - this.arrowCords.travelDistance
                     }
-                    this.arrow(this.arrowMoving[i].x, 325, 'green')
+                    this.arrow(this.arrowMoving[i].x, this.arrowCords.left.y, 'green')
                     this.arrowMoving[i].x += 4
-                    if (left && 500-25<this.arrowMoving[i].x && this.arrowMoving[i].x<500+50) {
+                    if (left && this.arrowCords.left.x-25<this.arrowMoving[i].x && this.arrowMoving[i].x<this.arrowCords.left.x+this.safeZone) {
                         var remove = true
-                        var minusPoints = Math.abs(this.arrowMoving[i].x - 500)
+                        var minusPoints = Math.abs(this.arrowMoving[i].x - this.arrowCords.left.x)
                         this.changeScore(300 - minusPoints)
                     }
-                    
-                    if (this.arrowMoving[i].x < 550 && !remove) {
+                    if (this.arrowMoving[i].x < this.arrowCords.left.x + 50 && !remove) {
                         newArrows.push(this.arrowMoving[i])
                     }
                 } else if (this.arrowMoving[i].direction == 'up') {
                     if (! this.arrowMoving[i].y) {
-                        this.arrowMoving[i].y = 0
+                        this.arrowMoving[i].y = this.arrowCords.up.x - this.arrowCords.travelDistance
                     }
                     this.ctx.rotate(90 * Math.PI / 180)
-                    this.arrow(this.arrowMoving[i].y, -625, 'green')
+                    this.arrow(this.arrowMoving[i].y, this.arrowCords.up.y, 'green')
                     this.ctx.rotate(-(90 * Math.PI / 180))
                     this.arrowMoving[i].y += 4
-                    if (up && 200-25<this.arrowMoving[i].y && this.arrowMoving[i].y<200+50) {
+                    if (up && this.arrowCords.up.x-25<this.arrowMoving[i].y && this.arrowMoving[i].y<this.arrowCords.up.x+this.safeZone) {
                         var remove = true
-                        var minusPoints = Math.abs(this.arrowMoving[i].y - 500)
+                        var minusPoints = Math.abs(this.arrowMoving[i].y - this.arrowCords.up.x)
                         this.changeScore(300 - minusPoints)
                     }
                     
-                    if (this.arrowMoving[i].y < 250 && !remove) {
+                    if (this.arrowMoving[i].y < this.arrowCords.up.x + 50 && !remove) {
                         newArrows.push(this.arrowMoving[i])
                     }
                 } else if (this.arrowMoving[i].direction == 'right') {
                     if (! this.arrowMoving[i].x) {
-                        this.arrowMoving[i].x = -975
+                        this.arrowMoving[i].x = this.arrowCords.right.x - this.arrowCords.travelDistance
                     }
                     this.ctx.rotate(180 * Math.PI / 180)
-                    this.arrow(this.arrowMoving[i].x, -315, 'green')
+                    this.arrow(this.arrowMoving[i].x, this.arrowCords.right.y, 'green')
                     this.ctx.rotate(-(180 * Math.PI / 180))
                     this.arrowMoving[i].x += 4
-                    if (right && -775-25<this.arrowMoving[i].x && this.arrowMoving[i].x<-775+50) {
+                    if (right && this.arrowCords.right.x-25<this.arrowMoving[i].x && this.arrowMoving[i].x<this.arrowCords.right.x+this.safeZone) {
                         var remove = true
-                        var minusPoints = Math.abs(this.arrowMoving[i].x + 775)
+                        var minusPoints = Math.abs(this.arrowMoving[i].x - this.arrowCords.right.x)
                         this.changeScore(300 - minusPoints)
                     }
                     
-                    if (this.arrowMoving[i].x < -725 && !remove) {
+                    if (this.arrowMoving[i].x < this.arrowCords.right.x + 50 && !remove) {
                         newArrows.push(this.arrowMoving[i])
                     }
-                } else if (this.arrowMoving[i].direction == 'down') {
+                } else if (this.arrowMoving[i].direction == 'down') { //this.arrowCords.down.x, this.arrowCords.down.y  -445, 640
                     if (! this.arrowMoving[i].y) {
-                        this.arrowMoving[i].y =-645
+                        this.arrowMoving[i].y = this.arrowCords.down.x - this.arrowCords.travelDistance
                     }
                     this.ctx.rotate(90 * 3 * Math.PI / 180)
-                    this.arrow(this.arrowMoving[i].y, 640, 'green')
+                    this.arrow(this.arrowMoving[i].y, this.arrowCords.down.y, 'green')
                     this.ctx.rotate(90 * Math.PI / 180)
                     this.arrowMoving[i].y += 4
-                    if (down && -455-25<this.arrowMoving[i].y && this.arrowMoving[i].y<-455+50) {
+                    if (down && this.arrowCords.down.x-25<this.arrowMoving[i].y && this.arrowMoving[i].y<this.arrowCords.down.x+this.safeZone) {
                         var remove = true
-                        var minusPoints = Math.abs(this.arrowMoving[i].y + 455)
+                        var minusPoints = Math.abs(this.arrowMoving[i].y - this.arrowCords.down.x)
                         this.changeScore(300 - minusPoints)
                     }
                     
-                    if (this.arrowMoving[i].y < -395 && !remove) {
+                    if (this.arrowMoving[i].y < this.arrowCords.down.x + 50 && !remove) {
                         newArrows.push(this.arrowMoving[i])
                     }
                 }
-                
-                
             }
             this.arrowMoving = newArrows
         },
+        ask4File: function() {
+            var file = document.createElement('input')
+            file.type = 'file'
+            file.accept = "." + this.extension
+            file.onchange = function(e) {
+                var reader = new FileReader()
+                reader.onload = function(e) {
+                    var data = JSON.parse(e.target.result)
+                    this.audio.data = data.audioData
+                    this.data.recording = data
+                    this.audio.src = URL.createObjectURL(new Blob([Uint8Array.from(this.audio.data)]))
+                    this.audio.element.src = this.audio.src
+                    setTimeout(function() {
+                        this.audio.element.play()
+                    }.bind(this), 100) // Should I add a countdown on the screen
+                    this.audioLoaded = true
+                }.bind(this)
+                reader.readAsText(e.target.files[0])
+                
+            }.bind(this)
+            file.click()
+        },
         playScreen: function() {
+            if (! this.audioLoaded) {
+                return
+            }
             var left = false, right = false, up = false, down = false
             if (this.rightPressed) {
                 right = true
@@ -206,18 +286,140 @@
                 up = true
             }
             this.writeScore()
-            
-            this.arrow(500, 325, left) //left
+            var newKeys = []
+            for (var i=0; i<this.data.recording.keys.length; i++) {
+                if (this.audio.element.currentTime > this.data.recording.keys[i].time - 0.540) {
+                    this.arrowMoving.push({"direction": this.data.recording.keys[i].key}) // TODO - Add calibration screen
+                } else {
+                    newKeys.push(this.data.recording.keys[i])
+                }
+            }
+            this.data.recording.keys = newKeys
+            /*
+            this.ctx.font = "30px Arial";
+            this.ctx.fillStyle = "black";
+            this.ctx.fillText(newKeys.length, 50, 100);
+            */
+            this.arrow(this.arrowCords.left.x, this.arrowCords.left.y, left) //left
             this.ctx.rotate(90 * Math.PI / 180)
-            this.arrow(200, -625, up) //up
+            this.arrow(this.arrowCords.up.x, this.arrowCords.up.y, up) //up
             this.ctx.rotate(90 * Math.PI / 180)
-            this.arrow(-775, -315, right) //right
+            this.arrow(this.arrowCords.right.x, this.arrowCords.right.y, right) //right
             this.ctx.rotate(90 * Math.PI / 180)
-            this.arrow(-455, 640, down) //down
+            this.arrow(this.arrowCords.down.x, this.arrowCords.down.y, down) //down
             this.ctx.rotate(90 * Math.PI / 180)
-            
-            
             this.movingArrows()
+        },
+        createScreen: function() {
+            var left = false, right = false, up = false, down = false
+            if (this.rightPressed) {
+                right = true
+            }
+            if (this.downPressed) {
+                down = true
+            }
+            if (this.leftPressed) {
+                left = true
+            }
+            if (this.upPressed) {
+                up = true
+            }
+            if (! this.audio.selected) {
+                this.ctx.beginPath()
+                this.ctx.rect(20, 20, 200, 50)
+                this.ctx.fillStyle = "green"
+                this.ctx.stroke()
+                this.ctx.fill()
+                this.ctx.font = "20px Arial";
+                this.ctx.fillStyle = "white";
+                this.ctx.fillText("Upload Audio", 50, 50);
+            } else {
+                this.ctx.beginPath()
+                this.ctx.rect(20, 20, 150, 50)
+                this.ctx.fillStyle = "black"
+                this.ctx.stroke()
+                this.ctx.fill()
+                this.ctx.font = "20px Arial";
+                this.ctx.fillStyle = "white";
+                if (this.recording) {
+                    this.ctx.fillText("Stop Recording", 50, 50);
+                } else {
+                    this.ctx.fillText("Record", 50, 50);
+                }
+                
+                this.ctx.beginPath()
+                this.ctx.rect(175, 20, 150, 50)
+                this.ctx.fillStyle = "yellow"
+                this.ctx.stroke()
+                this.ctx.fill()
+                this.ctx.font = "20px Arial";
+                this.ctx.fillStyle = "green";
+                this.ctx.fillText("Save", 215, 50);
+            }
+            
+            this.arrow(this.arrowCords.left.x, this.arrowCords.left.y, left) //left
+            this.ctx.rotate(90 * Math.PI / 180)
+            this.arrow(this.arrowCords.up.x, this.arrowCords.up.y, up) //up
+            this.ctx.rotate(90 * Math.PI / 180)
+            this.arrow(this.arrowCords.right.x, this.arrowCords.right.y, right) //right
+            this.ctx.rotate(90 * Math.PI / 180)
+            this.arrow(this.arrowCords.down.x, this.arrowCords.down.y, down) //down
+            this.ctx.rotate(90 * Math.PI / 180)
+        },
+        chooseAudio: function() {
+            var file = document.createElement('input')
+            file.type = 'file'
+            file.accept = ".mp3, .flac, .ogg, .webm"
+            file.onchange = function(e) {
+                var reader = new FileReader()
+                reader.onload = function(e) {
+                    var file = e.target.result
+                    this.audio.selected = true
+                    this.audio.src = URL.createObjectURL(new Blob([file]))
+                    this.audio.data = Array.from(new Uint8Array(file))
+                    this.audio.element.src = this.audio.src
+                    this.audio.element.pause()
+                }.bind(this)
+                reader.readAsArrayBuffer(e.target.files[0])
+                
+            }.bind(this)
+            file.click()
+        },
+        record: function() {
+            this.recording = true
+            this.audio.element.play()
+            this.audio.element.addEventListener('ended', this.stopRecording.bind(this), false)
+            document.addEventListener("keydown", this.recordKey.bind(this), false)
+        },
+        recordKey: function(e) {
+            var time = this.audio.element.currentTime
+            var key = e.key
+            if (key == 'ArrowUp') {
+                key = 'up'
+            } else if (key == 'ArrowDown') {
+                key = 'down'
+            } else if (key == 'ArrowRight') {
+                key = 'right'
+            } else if (key == 'ArrowLeft') {
+                key = 'left'
+            }
+            this.data.recording.keys.push({"key": key, "time": time})
+        },
+        stopRecording: function() {
+            this.recording = false
+            this.audio.element.pause()
+            this.audio.element.currentTime = 0
+            this.audio.element.removeEventListener('ended', this.stopRecording.bind(this), false)
+            document.removeEventListener("keydown", this.recordKey.bind(this), false)
+        },
+        save: function() {
+            var data = this.data.recording
+            data.audioData = this.audio.data
+            var data = JSON.stringify(data)
+            var a = document.createElement('a')
+            a.href = URL.createObjectURL(new Blob([data]))
+            a.download = 'myAudio.' + this.extension
+            a.click()
         },
         renderBall: function() {
             var ctx = this.ctx
@@ -233,6 +435,8 @@
                 this.titleScreen()
             } else if (this.stage == 'play screen') {
                 this.playScreen()
+            } else if (this.stage == 'create screen') {
+                this.createScreen()
             } else {
                 this.renderBall()
             }
@@ -291,13 +495,13 @@
             this.ctx.fillStyle = "black";
             this.ctx.fillText("Score: " + this.score, 30, 50);
             //this.ctx.fillText("High Score: " + localStorage.getItem('highScore'), 30, 100);
+        },
+        resizeCanvas: function() {
+            this.canvas.width = window.innerWidth
+            this.canvas.height = window.innerHeight
         }
-        
-        
     }
-    new game()
-    
-    
+    new game(document.getElementById("myCanvas"))
 </script>
 
 </body>
