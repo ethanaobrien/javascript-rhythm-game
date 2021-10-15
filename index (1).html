@@ -22,9 +22,8 @@
     }
     /**
     TODOs
-    Support for background colors
     Retry button on results page
-    LOADING text
+    More game modes (like osu)
     
     */
     
@@ -57,7 +56,7 @@
                            "down": {"x": -455, "y": 640},
                            "travelDistance": 200
                           }
-        this.safeZone = 25
+        this.safeZone = 100
         
         this.zip = new JSZip()
         
@@ -79,6 +78,8 @@
         this.fileName = null
         this.origData = null
         this.zipStatus = null
+        this.zipping = false
+        this.unzipping = false
         
         this.score = 0
         
@@ -349,6 +350,7 @@
             file.type = 'file'
             file.accept = "." + this.extension
             file.onchange = async function(e) {
+                this.unzipping = true
                 this.stage = 'play screen'
                 this.paused = false
                 var contents = await this.zip.loadAsync(e.target.files[0])
@@ -377,6 +379,7 @@
                     this.videoBack.selected = true
                     this.videoBack.element.src = this.videoBack.src
                 }
+                this.unzipping = false
                 setTimeout(function() {
                     this.play()
                     this.addListener('ended', function() {this.stage = 'results screen'}.bind(this), false)
@@ -399,6 +402,12 @@
             if (this.upPressed) {
                 up = true
             }
+            if (this.unzipping) {
+                this.ctx.font = "30px Arial";
+                this.ctx.fillStyle = "black";
+                this.ctx.fillText('Loading...', (this.canvas.width / 2) - 100, 100);
+                return
+            }
             if (this.background.selected) {
                 this.drawImage()
             } else if (this.videoBack.selected && this.videoBack.element.currentTime > 0) {
@@ -408,7 +417,7 @@
             var newKeys = []
             for (var i=0; i<this.data.recording.keys.length; i++) {
                 if (this.getCurrentTime() > this.data.recording.keys[i].time - 0.540) {
-                    this.arrowMoving.push({"direction": this.data.recording.keys[i].key}) // TODO - Add calibration screen
+                    this.arrowMoving.push({"direction": this.data.recording.keys[i].key}) // TODO - Add calibration screen?
                 } else {
                     newKeys.push(this.data.recording.keys[i])
                 }
@@ -723,6 +732,11 @@
             this.ctx.rotate(90 * Math.PI / 180)
             this.arrow(this.arrowCords.down.x, this.arrowCords.down.y, down) //down
             this.ctx.rotate(90 * Math.PI / 180)
+            if (this.zipping) {
+                this.ctx.font = "30px Arial";
+                this.ctx.fillStyle = "black";
+                this.ctx.fillText('Processing Files: ' + this.zipStatus + '%', (this.canvas.width/2) - 200, 100);
+            }
         },
         chooseAudio: function() {
             var file = document.createElement('input')
@@ -795,14 +809,17 @@
             if (this.background.data) {
                 this.zip.file('background', new Blob([this.background.data]))
             }
+            this.zipping = true
             var blob = await this.zip.generateAsync({type:"blob"}, function updateCallback(metadata) {
-                this.zipStatus = "Zipping File: " + metadata.percent.toFixed(2) + " %"
+                this.zipStatus = metadata.percent.toFixed(2)
                 //TODO - Show zipping percent
-            })
+            }.bind(this))
             var a = document.createElement('a')
             a.href = URL.createObjectURL(blob)
             a.download = this.fileName + '.' + this.extension
             a.click()
+            this.zipStatus = null
+            this.zipping = false
         },
         renderBall: function() {
             var ctx = this.ctx
@@ -840,8 +857,8 @@
                 this.downPressed = false
                 this.upPressed = false
                 if (this.stage == 'play screen') {
-                    //this.paused = true
-                    //this.pause()
+                    this.paused = true
+                    this.pause()
                 }
             }
         },
@@ -921,7 +938,7 @@
                                "down": {"x": -455, "y": 640},
                                "travelDistance": 200
                               }
-            this.safeZone = 25
+            this.safeZone = 100
             this.stage = 'title screen'
             this.draw()
             this.radius = 10
@@ -934,11 +951,12 @@
                     "keys": []
                 }
             }
-            this.extension = 'fgh' // The extension of the save/load file. Should I have a different name?
             this.fileName = null
             this.origData = null
             this.score = 0
             this.zipStatus = null
+            this.zipping = false
+            this.unzipping = false
         },
         play: function() {
             this.playing = true
