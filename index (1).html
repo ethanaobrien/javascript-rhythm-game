@@ -12,6 +12,7 @@
 
 <canvas id="myCanvas" width="1000" height="600"></canvas>
 
+<script src='jszip.js'></script>
 <script>
     
     window.onerror = function(e) {
@@ -22,6 +23,8 @@
     /**
     TODOs
     Support for background colors
+    Retry button on results page
+    LOADING text
     
     */
     
@@ -56,7 +59,7 @@
                           }
         this.safeZone = 25
         
-        
+        this.zip = new JSZip()
         
         this.stage = 'title screen'
         this.draw()
@@ -75,6 +78,7 @@
         this.extension = 'fgh' // The extension of the save/load file. Should I have a different name?
         this.fileName = null
         this.origData = null
+        this.zipStatus = null
         
         this.score = 0
         
@@ -344,39 +348,40 @@
             var file = document.createElement('input')
             file.type = 'file'
             file.accept = "." + this.extension
-            file.onchange = function(e) {
+            file.onchange = async function(e) {
                 this.stage = 'play screen'
                 this.paused = false
-                var reader = new FileReader()
-                reader.onload = function(e) {
-                    var data = JSON.parse(e.target.result)
-                    this.data.recording = data
-                    this.origData = JSON.clone(data)
-                    if (data.audioData) {
-                        this.audio.data = data.audioData
-                        this.audio.src = URL.createObjectURL(new Blob([Uint8Array.from(this.audio.data)]))
-                        this.audio.selected = true
-                        this.audio.element.src = this.audio.src
-                    }
-                    if (data.background) {
-                        this.background.data = data.background
-                        this.background.src = URL.createObjectURL(new Blob([Uint8Array.from(this.background.data)]))
-                        this.background.selected = true
-                        this.background.element.src = this.background.src
-                    }
-                    if (data.video) {
-                        this.videoBack.data = data.video
-                        this.videoBack.src = URL.createObjectURL(new Blob([Uint8Array.from(this.videoBack.data)]))
-                        this.videoBack.selected = true
-                        this.videoBack.element.src = this.videoBack.src
-                    }
-                    setTimeout(function() {
-                        this.play()
-                        this.addListener('ended', function() {this.stage = 'results screen'}.bind(this), false)
-                        //this.videoBack.element.currentTime = this.videoBack.element.duration - 5
-                    }.bind(this), 100) // Should I add a countdown on the screen?
-                }.bind(this)
-                reader.readAsText(e.target.files[0])
+                var contents = await this.zip.loadAsync(e.target.files[0])
+                var data = await contents.file("data.json").async("string")
+                var data = JSON.parse(data)
+                this.data.recording = data
+                this.origData = JSON.clone(data)
+                if (contents.files['audio']) {
+                    var audio = await contents.file("audio").async("arrayBuffer")
+                    this.audio.data = audio
+                    this.audio.src = URL.createObjectURL(new Blob([this.audio.data]))
+                    this.audio.selected = true
+                    this.audio.element.src = this.audio.src
+                }
+                if (contents.files['background']) {
+                    var background = await contents.file("background").async("arrayBuffer")
+                    this.background.data = background
+                    this.background.src = URL.createObjectURL(new Blob([this.background.data]))
+                    this.background.selected = true
+                    this.background.element.src = this.background.src
+                }
+                if (contents.files['video']) {
+                    var video = await contents.file("video").async("arrayBuffer")
+                    this.videoBack.data = video
+                    this.videoBack.src = URL.createObjectURL(new Blob([this.videoBack.data]))
+                    this.videoBack.selected = true
+                    this.videoBack.element.src = this.videoBack.src
+                }
+                setTimeout(function() {
+                    this.play()
+                    this.addListener('ended', function() {this.stage = 'results screen'}.bind(this), false)
+                    //this.videoBack.element.currentTime = this.videoBack.element.duration - 5
+                }.bind(this), 100) // Should I add a countdown on the screen?
             }.bind(this)
             file.click()
         },
@@ -560,7 +565,7 @@
                     var file = e.target.result
                     this.background.selected = true
                     this.background.src = URL.createObjectURL(new Blob([file]))
-                    this.background.data = Array.from(new Uint8Array(file))
+                    this.background.data = new Uint8Array(file)
                     this.background.element.src = this.background.src
                 }.bind(this)
                 reader.readAsArrayBuffer(e.target.files[0])
@@ -581,7 +586,7 @@
                     var file = e.target.result
                     this.videoBack.selected = true
                     this.videoBack.src = URL.createObjectURL(new Blob([file]))
-                    this.videoBack.data = Array.from(new Uint8Array(file))
+                    this.videoBack.data = new Uint8Array(file)
                     this.videoBack.element.src = this.videoBack.src
                 }.bind(this)
                 reader.readAsArrayBuffer(e.target.files[0])
@@ -731,7 +736,7 @@
                     var file = e.target.result
                     this.audio.selected = true
                     this.audio.src = URL.createObjectURL(new Blob([file]))
-                    this.audio.data = Array.from(new Uint8Array(file))
+                    this.audio.data = new Uint8Array(file)
                     this.audio.element.src = this.audio.src
                     this.pause()
                 }.bind(this)
@@ -745,6 +750,7 @@
                 alert('Please select audio/video in settings tab')
                 return
             }
+            this.restartAV()
             this.data.recording.keys = []
             this.recording = true
             this.play()
@@ -774,18 +780,27 @@
             this.removeListener('ended', this.stopRecording.bind(this), false)
             document.removeEventListener("keydown", this.recordKey.bind(this), false)
         },
-        save: function() {
+        save: async function() {
             if (this.data.recording.keys.length == 0 || (! this.audio.selected && ! this.videoBack.selected)) {
                 alert('Nothing to save!')
                 return
             }
-            var data = this.data.recording
-            data.audioData = this.audio.data || undefined
-            data.background = this.background.data || undefined
-            data.video = this.videoBack.data || undefined
-            var data = JSON.stringify(data)
+            this.zip.file('data.json', new Blob([JSON.stringify(this.data.recording)]))
+            if (this.videoBack.data) {
+                this.zip.file('video', new Blob([this.videoBack.data]))
+            }
+            if (this.audio.data) {
+                this.zip.file('audio', new Blob([this.audio.data]))
+            }
+            if (this.background.data) {
+                this.zip.file('background', new Blob([this.background.data]))
+            }
+            var blob = await this.zip.generateAsync({type:"blob"}, function updateCallback(metadata) {
+                this.zipStatus = "Zipping File: " + metadata.percent.toFixed(2) + " %"
+                //TODO - Show zipping percent
+            })
             var a = document.createElement('a')
-            a.href = URL.createObjectURL(new Blob([data]))
+            a.href = URL.createObjectURL(blob)
             a.download = this.fileName + '.' + this.extension
             a.click()
         },
@@ -923,6 +938,7 @@
             this.fileName = null
             this.origData = null
             this.score = 0
+            this.zipStatus = null
         },
         play: function() {
             this.playing = true
