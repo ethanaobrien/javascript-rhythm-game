@@ -24,6 +24,9 @@
     TODOs
     Retry button on results page
     More game modes (like osu)
+    Add settings page
+    Center arrow buttons
+    Calibrate in the background
     
     */
     
@@ -48,15 +51,17 @@
         this.playing = false
         
         this.arrowMoving = []
+        this.testingArrows = []
         //this.arrowMoving.push({direction: "left"})
         
         this.arrowCords = {"left": {"x": 500, "y": 325},
                            "up": {"x": 200, "y": -625},
-                           "right": {"x": -775, "y": -315},
+                           "right": {"x": -775, "y": -315}, // TODO - Center arrow buttons
                            "down": {"x": -455, "y": 640},
-                           "travelDistance": 200
+                           "travelDistance": 200 // Add option to change this in settings?
                           }
-        this.safeZone = 100
+        this.safeZone = 150 // Should I add the ability to change this in settings?
+        this.moveSpeed = 2
         
         this.zip = new JSZip()
         
@@ -80,15 +85,20 @@
         this.zipStatus = null
         this.zipping = false
         this.unzipping = false
+        this.delayTime = 0.550
         
         this.score = 0
-        
+        this.draw()
         this.canvas.addEventListener('click', this.click.bind(this), false)
         document.addEventListener("keydown", this.down.bind(this), false)
         document.addEventListener("keyup", this.up.bind(this), false)
         document.addEventListener("visibilitychange", this.hidden.bind(this), false)
         window.addEventListener('resize', this.resizeCanvas.bind(this), false)
-        this.refresh = setInterval(this.draw.bind(this), 10)
+        if (window.requestAnimationFrame) {
+            requestAnimationFrame(this.draw.bind(this))
+        } else {
+            setInterval(this.draw.bind(this), 10)
+        }
         if (typeof JSON.clone != "function") {
             JSON.clone = function(obj) {
                 return JSON.parse(JSON.stringify(obj));
@@ -111,8 +121,8 @@
         click: function() {
             if (this.stage == 'title screen') {
                 if (this.isTouching(20, 20, (this.canvas.width / 2) - 75, this.canvas.height - 50)) {
-                    this.stage = 'title2 screen'
-                    //this.ask4File()
+                    //this.stage = 'title2 screen'
+                    this.stage = 'calibration screen' // Calibrate buttons
                 } else if (this.isTouching((this.canvas.width / 2) -25, 20, this.canvas.width / 2, this.canvas.height - 50)) {
                     this.stage = 'create screen'
                 }
@@ -138,6 +148,10 @@
                     this.ask4File()
                 } else if (this.isTouching((this.canvas.width/4 * 3) + 125, 20, 200, 50)) {
                     this.reset()
+                } else if (this.isTouching((this.canvas.width / 2) - 125, 120, 230, 50)) {
+                    this.stage = 'calibration screen'
+                } else if (this.isTouching((this.canvas.width / 2) - 125, 220, 230, 50)) {
+                    this.stage = 'title2 settings'
                 }
             } else if (this.stage == 'play screen') {
                 if (this.isTouching((this.canvas.width/4 * 3) + 125, 20, 200, 50)) {
@@ -148,7 +162,7 @@
                     this.pause()
                     this.arrowMoving = []
                     this.stats = []
-                    this.data.recording = this.origData
+                    this.data.recording = JSON.clone(this.origData)
                     setTimeout(() => {
                         this.play()
                     }, 200)
@@ -164,6 +178,17 @@
             } else if (this.stage == 'results screen') {
                 if (this.isTouching((this.canvas.width/4 * 3) + 125, 20, 200, 50)) {
                     this.reset()
+                } else if (this.isTouching(20, 20, 150, 50)) {
+                    this.stage = 'play screen'
+                    this.score = 0
+                    this.restartAV()
+                    this.pause()
+                    this.arrowMoving = []
+                    this.stats = []
+                    this.data.recording = JSON.clone(this.origData)
+                    setTimeout(() => {
+                        this.play()
+                    }, 200)
                 }
             } else if (this.stage == 'settings') {
                 if (this.isTouching((this.canvas.width/4 * 3) + 125, 20, 200, 50)) {
@@ -174,6 +199,18 @@
                     this.uploadBackgroundVideo()
                 } else if (this.isTouching((this.canvas.width/2) - 200, 180, 300, 50)) {
                     this.chooseAudio()
+                }
+            } else if (this.stage == 'title2 settings') {
+                if (this.isTouching((this.canvas.width/4 * 3) + 125, 20, 200, 50)) {
+                    this.stage = 'calibration screen' // calibrate any new speeds
+                } else if (this.isTouching((this.canvas.width/2) - 200, 120, 50, 50)) {
+                    if (this.moveSpeed > 1) {
+                        this.moveSpeed--
+                    }
+                } else if (this.isTouching((this.canvas.width/2) + 150, 120, 50, 50)) {
+                    if (this.moveSpeed < 10) {
+                        this.moveSpeed++
+                    }
                 }
             }
         },
@@ -205,6 +242,25 @@
             this.ctx.fillStyle = "white";
             this.ctx.fillText("Click to upload ." + this.extension + " file", (this.canvas.width / 2) - 110, 50);
             
+            
+            this.ctx.beginPath()
+            this.ctx.rect((this.canvas.width / 2) - 125, 120, 230, 50)
+            this.ctx.fillStyle = "green"
+            this.ctx.stroke()
+            this.ctx.fill()
+            this.ctx.font = "20px Arial";
+            this.ctx.fillStyle = "white";
+            this.ctx.fillText("Calibrate", (this.canvas.width / 2) - 60, 150);
+            
+            this.ctx.beginPath()
+            this.ctx.rect((this.canvas.width / 2) - 125, 220, 230, 50)
+            this.ctx.fillStyle = "green"
+            this.ctx.stroke()
+            this.ctx.fill()
+            this.ctx.font = "20px Arial";
+            this.ctx.fillStyle = "white";
+            this.ctx.fillText("Settings", (this.canvas.width / 2) - 50, 250);
+            
             this.ctx.beginPath()
             this.ctx.rect((this.canvas.width/4 * 3) + 125, 20, 200, 50)
             this.ctx.fillStyle = "green"
@@ -213,6 +269,80 @@
             this.ctx.font = "20px Arial";
             this.ctx.fillStyle = "white";
             this.ctx.fillText("To Home", (this.canvas.width/4 * 3) + 175, 50);
+        },
+        calibrationScreen: function() {
+            // TODO - Calibrate in the background?
+            this.ctx.font = "40px Arial";
+            this.ctx.fillStyle = "black";
+            this.ctx.fillText("Please wait, Calibrating...", (this.canvas.width/2) - 250 , 70);
+            if (! this.startCalibration) {
+                this.startCalibration = new Date()
+                this.testingArrows = []
+                this.testingArrows.push({direction: "left"})
+            }
+            this.arrow(this.arrowCords.left.x, this.arrowCords.left.y, false)
+            var newArrows = []
+            for (var i=0; i<this.testingArrows.length; i++) {
+                var remove = false
+                if (this.testingArrows[i].direction == 'left') {
+                    if (! this.testingArrows[i].x) {
+                        this.testingArrows[i].x = this.arrowCords.left.x - this.arrowCords.travelDistance
+                    }
+                    this.arrow(this.testingArrows[i].x, this.arrowCords.left.y, 'green')
+                    this.testingArrows[i].x += this.moveSpeed
+                    if (this.testingArrows[i].x < this.arrowCords.left.x + 1) {
+                        newArrows.push(this.testingArrows[i])
+                    } else {
+                        var diff = Math.abs(new Date() - this.startCalibration);
+                        this.delayTime = diff * 0.001
+                        this.stage = 'title2 screen'
+                        delete this.startCalibration
+                    }
+                }
+            }
+            this.testingArrows = newArrows
+            this.ctx.font = "30px Arial";
+            this.ctx.fillStyle = "black";
+            this.ctx.fillText(newArrows.length, 50, 100);
+        },
+        title2Settings: function() {
+            
+            
+            
+            this.ctx.font = "40px Arial";
+            this.ctx.fillStyle = "black";
+            this.ctx.fillText("Speed", (this.canvas.width/2) - 75, 70);
+            
+            this.ctx.beginPath()
+            this.ctx.rect((this.canvas.width/2) - 200, 120, 50, 50)
+            this.ctx.fillStyle = "green"
+            this.ctx.stroke()
+            this.ctx.fill()
+            this.ctx.font = "20px Arial";
+            this.ctx.fillStyle = "white";
+            this.ctx.fillText("-", (this.canvas.width/2) - 180, 150);
+            
+            this.ctx.font = "40px Arial";
+            this.ctx.fillStyle = "black";
+            this.ctx.fillText(this.moveSpeed, (this.canvas.width/2) - 10, 150);
+            
+            this.ctx.beginPath()
+            this.ctx.rect((this.canvas.width/2) + 150, 120, 50, 50)
+            this.ctx.fillStyle = "green"
+            this.ctx.stroke()
+            this.ctx.fill()
+            this.ctx.font = "20px Arial";
+            this.ctx.fillStyle = "white";
+            this.ctx.fillText("+", (this.canvas.width/2) + 170, 150);
+            
+            this.ctx.beginPath()
+            this.ctx.rect((this.canvas.width/4 * 3) + 125, 20, 200, 50)
+            this.ctx.fillStyle = "green"
+            this.ctx.stroke()
+            this.ctx.fill()
+            this.ctx.font = "20px Arial";
+            this.ctx.fillStyle = "white";
+            this.ctx.fillText("Back", (this.canvas.width/4 * 3) + 170, 50);
         },
         arrow: function(a, b, filled) {
             var ctx = this.ctx
@@ -258,7 +388,7 @@
                     }
                     this.arrow(this.arrowMoving[i].x, this.arrowCords.left.y, 'green')
                     if (! this.paused) {
-                        this.arrowMoving[i].x += 4
+                        this.arrowMoving[i].x += this.moveSpeed
                     }
                     if (left && this.arrowCords.left.x-25<this.arrowMoving[i].x && this.arrowMoving[i].x<this.arrowCords.left.x+this.safeZone && ! this.paused) {
                         var remove = true
@@ -280,7 +410,7 @@
                     this.arrow(this.arrowMoving[i].y, this.arrowCords.up.y, 'green')
                     this.ctx.rotate(-(90 * Math.PI / 180))
                     if (! this.paused) {
-                        this.arrowMoving[i].y += 4
+                        this.arrowMoving[i].y += this.moveSpeed
                     }
                     if (up && this.arrowCords.up.x-25<this.arrowMoving[i].y && this.arrowMoving[i].y<this.arrowCords.up.x+this.safeZone && ! this.paused) {
                         var remove = true
@@ -303,7 +433,7 @@
                     this.arrow(this.arrowMoving[i].x, this.arrowCords.right.y, 'green')
                     this.ctx.rotate(-(180 * Math.PI / 180))
                     if (! this.paused) {
-                        this.arrowMoving[i].x += 4
+                        this.arrowMoving[i].x += this.moveSpeed
                     }
                     if (right && this.arrowCords.right.x-25<this.arrowMoving[i].x && this.arrowMoving[i].x<this.arrowCords.right.x+this.safeZone && ! this.paused) {
                         var remove = true
@@ -326,7 +456,7 @@
                     this.arrow(this.arrowMoving[i].y, this.arrowCords.down.y, 'green')
                     this.ctx.rotate(90 * Math.PI / 180)
                     if (! this.paused) {
-                        this.arrowMoving[i].y += 4
+                        this.arrowMoving[i].y += this.moveSpeed
                     }
                     if (down && this.arrowCords.down.x-25<this.arrowMoving[i].y && this.arrowMoving[i].y<this.arrowCords.down.x+this.safeZone && ! this.paused) {
                         var remove = true
@@ -416,8 +546,8 @@
             this.writeScore()
             var newKeys = []
             for (var i=0; i<this.data.recording.keys.length; i++) {
-                if (this.getCurrentTime() > this.data.recording.keys[i].time - 0.540) {
-                    this.arrowMoving.push({"direction": this.data.recording.keys[i].key}) // TODO - Add calibration screen?
+                if (this.getCurrentTime() > this.data.recording.keys[i].time - this.delayTime) {
+                    this.arrowMoving.push({"direction": this.data.recording.keys[i].key})
                 } else {
                     newKeys.push(this.data.recording.keys[i])
                 }
@@ -473,6 +603,16 @@
             if (this.background.selected) {
                 this.drawImage()
             }
+            
+            this.ctx.beginPath()
+            this.ctx.rect(20, 20, 150, 50)
+            this.ctx.fillStyle = "black"
+            this.ctx.stroke()
+            this.ctx.fill()
+            this.ctx.font = "20px Arial";
+            this.ctx.fillStyle = "white";
+            this.ctx.fillText("Retry", 75, 50);
+            
             this.ctx.beginPath()
             this.ctx.rect((this.canvas.width/4 * 3) + 125, 20, 200, 50)
             this.ctx.fillStyle = "green"
@@ -481,7 +621,11 @@
             this.ctx.font = "20px Arial";
             this.ctx.fillStyle = "white";
             this.ctx.fillText("To Home", (this.canvas.width/4 * 3) + 175, 50);
-            this.writeScore()
+            
+            this.ctx.font = "30px Arial";
+            this.ctx.fillStyle = "black";
+            this.ctx.fillText("Score: " + this.score, 30, 125);
+            
             var results = []
             for (var i=0; i<this.stats.length; i++) {
                 if (this.stats[i].score == -this.minusScore) {
@@ -843,8 +987,15 @@
                 this.resultsScreen()
             } else if (this.stage == 'settings') {
                 this.settings()
+            } else if (this.stage == 'calibration screen') {
+                this.calibrationScreen()
+            } else if (this.stage == 'title2 settings') {
+                this.title2Settings()
             } else {
                 this.renderBall()
+            }
+            if (window.requestAnimationFrame) {
+                requestAnimationFrame(this.draw.bind(this))
             }
         },
         clear: function() {
@@ -920,28 +1071,16 @@
             this.canvas.height = window.innerHeight
         },
         reset: function() {
-            this.x = this.canvas.width / 2
-            this.y = this.canvas.height / 2
+            this.pause()
             this.rightPressed = false
             this.leftPressed = false
             this.downPressed = false
             this.upPressed = false
             this.paused = false
             this.stats = []
-            this.minusScore = 150
-            this.addScore = 300
             this.playing = false
             this.arrowMoving = []
-            this.arrowCords = {"left": {"x": 500, "y": 325},
-                               "up": {"x": 200, "y": -625},
-                               "right": {"x": -775, "y": -315},
-                               "down": {"x": -455, "y": 640},
-                               "travelDistance": 200
-                              }
-            this.safeZone = 100
             this.stage = 'title screen'
-            this.draw()
-            this.radius = 10
             this.audio = {"src": null, "data": null, "element": document.createElement('audio'), "selected": false}
             this.background = {"src": null, "data": null, "element": document.createElement('img'), "selected": false}
             this.videoBack = {"src": null, "data": null, "element": document.createElement('video'), "selected": false}
