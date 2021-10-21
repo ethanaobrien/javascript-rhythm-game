@@ -1,10 +1,18 @@
-# javascript-rhythm-game
+# wosu
+
+
+
+based on [osu](https://osu.ppy.sh/) (osu in the browser)
 
 Beta rhythm game
 
 Many planned features
 
-Made to be simple
+TODO:
+Redo UI
+Add osu sliders
+Add osu spiners
+
 
 If you re-distribute - Give me credit
 
