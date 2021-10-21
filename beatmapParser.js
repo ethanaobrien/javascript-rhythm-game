@@ -118,6 +118,9 @@ async function beatmapParser(file) {
         */
         function parseObjectParams(line, type) {
             var tokens = line.split(',').slice(5)
+            if (tokens.length == 0) {
+                return null
+            }
             var p = {}
             if (type == 0) {
                 p = null
@@ -139,7 +142,10 @@ async function beatmapParser(file) {
         if (data.split('[HitObjects]\n').length != 1) {
             var lines = data.split('[HitObjects]\n').pop().split('\n')
             beatmapData['[HitObjects]'] = []
-            for (var i=0; i<lines.length-1; i++) {
+            for (var i=0; i<lines.length; i++) {
+                if (lines[i].trim() == '') {
+                    continue
+                }
                 // x,y,time,type,hitSound,objectParams,hitSample
                 var tokens = lines[i].split(",")
                 beatmapData['[HitObjects]'].push({
