@@ -1,10 +1,9 @@
 # wosu
 
 
-
 based on [osu](https://osu.ppy.sh/) (osu in the browser)
 
-Beta rhythm game
+IF I DON'T KNOW ABOUT AN ISSUE - THEN I CAN'T FIX IT. Please open an issue if you see one!
 
 Many planned features
 
