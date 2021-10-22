@@ -960,7 +960,7 @@
             
             this.ctx.font = "30px Arial";
             this.ctx.fillStyle = "black";
-            this.ctx.fillText("Score: " + this.score, 30, 125);
+            this.ctx.fillText("Score: " + Math.round(this.score), 30, 125);
             
             var results = []
             for (var i=0; i<this.stats.length; i++) {
@@ -1103,7 +1103,8 @@
                     newButtons.push(this.beatmap.buttons[i])
                 }
             }
-            if (this.getCurrentTime()*1000 > this.beatmap.timingPoints[0].time) { // osu Requires the TimingPoints to be chronological
+            if (this.beatmap.timingPoints.length > 0 && this.getCurrentTime()*1000 > this.beatmap.timingPoints[0].time) {
+                // osu Requires the TimingPoints to be chronological
                 var yes = this.beatmap.timingPoints[0]
                 this.beatmap.beatLength = yes.beatLength
                 if (yes.uninherited) {
@@ -1278,7 +1279,7 @@
             
             this.ctx.font = "30px Arial";
             this.ctx.fillStyle = "black";
-            this.ctx.fillText("Score: " + this.score, 30, 125);
+            this.ctx.fillText("Score: " + Math.round(this.score), 30, 125);
             
             var results = []
             for (var i=0; i<this.stats.length; i++) {
