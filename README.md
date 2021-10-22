@@ -15,7 +15,7 @@ Add osu sliders
 Add osu spiners
 
 
-If you re-distribute - Give me credit
+If you re-distribute - Give me credit (as well as the original osu! creators)
 
 I take suggestions
 
