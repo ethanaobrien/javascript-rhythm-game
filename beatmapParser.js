@@ -126,14 +126,22 @@ async function beatmapParser(file) {
                 p = null
             } else if (type == 1 || type == 2 || type == 6) {
                 p.curveType = tokens[0].split('|')[0]
-                p.curvePoints = tokens[0].split('|').slice(1).join('|')
+                p.curvePoints = []
+                var a = tokens[0].split('|').slice(1).join('|')
+                if (a.trim() != '') {
+                    a = a.split('|')
+                    for (var i=0; i<a.length; i++) {
+                        var o = a[i].split(':')
+                        p.curvePoints.push({x: o[0], y: o[1]})
+                    }
+                }
                 p.slides = parseInt(tokens[1])
-                p.length = parseInt(tokens[2])
+                p.Length = parseInt(tokens[2])
                 p.edgeSounds = tokens[3]
                 p.edgeSets = tokens[4]
                 p.hitSample = tokens[5]
-            } else if (type == 3) {
-                p = lines[i].split(",")[5]
+            } else if (type == 3 || type == 12) {
+                p = line.split(",")[5]
             } else {
                 p = null // unsupported feature
             }
