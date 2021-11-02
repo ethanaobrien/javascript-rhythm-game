@@ -264,7 +264,7 @@
                     this.pause()
                     this.arrowMoving = []
                     this.stats = []
-                    this.beatmap = JSON.clone(this.origData)
+                    this.data.recording = JSON.clone(this.origData)
                     setTimeout(() => {
                         this.play()
                     }, 200)
@@ -686,7 +686,7 @@
                 setTimeout(function() {
                     this.play()
                     this.addListener('ended', function() {this.stage = 'results screen'}.bind(this), false)
-                    //this.videoBack.element.currentTime = this.videoBack.element.duration - 5
+                    //window.a = function() {this.videoBack.element.currentTime = this.videoBack.element.duration - 5}.bind(this)
                 }.bind(this), 100) // Should I add a countdown on the screen?
             }.bind(this)
             file.click()
@@ -1104,6 +1104,7 @@
                     newButtons.push(this.beatmap.buttons[i])
                 }
             }
+            this.beatmap.buttons = newButtons
             if (this.beatmap.timingPoints.length > 0 && this.getCurrentTime()*1000 > this.beatmap.timingPoints[0].time) {
                 // osu Requires the TimingPoints to be chronological
                 var yes = this.beatmap.timingPoints[0]
@@ -1115,7 +1116,6 @@
                 }
                 this.beatmap.timingPoints = this.beatmap.timingPoints.slice(1)
             }
-            this.beatmap.buttons = newButtons
             this.drawCircles()
             if (this.spinner) {
                 this.drawSpinner()
