@@ -761,8 +761,9 @@
             if (beatmap['[Events]'].video) {
                 this.videoBack.src = beatmap['[Events]'].video
                 this.videoBack.selected = true
-                this.videoBack.element.onload = function() {this.videoBack.loaded = true}.bind(this)
+                this.videoBack.element.onloadeddata = function() {this.videoBack.loaded = true}.bind(this)
                 this.videoBack.element.src = this.videoBack.src
+                this.videoBack.element.load()
                 this.videoBack.muted = true
             }
             if (beatmap['[TimingPoints]']) {
@@ -1077,16 +1078,16 @@
             }
         },
         osuPlay: function() {
-            if (this.unzipping) {
+            if (this.unzipping || (this.videoBack.selected && ! this.videoBack.loaded)) {
                 this.ctx.font = "30px Arial";
                 this.ctx.fillStyle = "black";
                 this.ctx.fillText('Loading...', (this.canvas.width / 2) - 100, 100);
                 return
             }
-            if (this.background.selected && this.background.loaded) {
-                this.drawImage()
-            } else if (this.videoBack.selected && this.videoBack.loaded) {
+            if (this.videoBack.selected && this.videoBack.loaded) {
                 this.drawVideo()
+            } else if (this.background.selected && this.background.loaded) {
+                this.drawImage()
             }
             this.writeScore()
             this.checkButtons()
