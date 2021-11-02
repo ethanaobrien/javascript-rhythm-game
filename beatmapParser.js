@@ -78,7 +78,7 @@ async function beatmapParser(file) {
                     }
                     tokens[2] = URL.createObjectURL(new Blob([await readfile(tokens[2])], {type: 'image/'+mime}))
                     beatmapData['[Events]'].image = tokens[2]
-                } else if (tokens[0] == '1') { // background video
+                } else if (tokens[0] == '1' || tokens[0].toLowerCase() == 'video') { // background video
                     tokens[2] = tokens[2].split('"').join('')
                     tokens[2] = URL.createObjectURL(new Blob([await readfile(tokens[2])], {type: 'video/'+tokens[2].split('.').pop()}))
                     beatmapData['[Events]'].video = tokens[2]
