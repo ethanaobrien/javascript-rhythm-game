@@ -1086,17 +1086,43 @@
             for (var i=0; i<this.sliders.length; i++) {
                 if (this.sliders[i].objectParams.curveType == 'L' || this.sliders[i].objectParams.curveType == 'C') {
                     if (! this.sliders[i].startTime) {
+                        this.sliders[i].curvePtsNum = 0
                         this.sliders[i].startTime = new Date()
                         this.sliders[i].totalTime = this.sliders[i].objectParams.Length/(this.beatmap.difficulty.SliderMultiplier*100)*this.beatmap.beatLength
                     }
                     var secs = this.sliders[i].totalTime/1000,
                         startx = this.sliders[i].x,
                         starty = this.sliders[i].y,
-                        x = this.sliders[i].objectParams.curvePoints[0].x,
-                        y = this.sliders[i].objectParams.curvePoints[0].y,
+                        x,
+                        y,
                         startDate = this.sliders[i].startTime,
                         ctx = this.ctx
+                    if (this.sliders[i].objectParams.curvePoints[this.sliders[i].curvePtsNum]) {
+                        x = this.sliders[i].objectParams.curvePoints[this.sliders[i].curvePtsNum].x
+                        y = this.sliders[i].objectParams.curvePoints[this.sliders[i].curvePtsNum].y
+                    }
+                    if (this.sliders[i].curvePtsNum > 0 && this.sliders[i].objectParams.slides == 1) {
+                        var startx = this.sliders[i].objectParams.curvePoints[this.sliders[i].curvePtsNum-1].x,
+                            starty = this.sliders[i].objectParams.curvePoints[this.sliders[i].curvePtsNum-1].x
+                    } else if (this.sliders[i].curvePtsNum > 0 && this.sliders[i].objectParams.slides > 1) {
+                        if (this.sliders[i].curvePtsNum % 2 == 1) {
+                            var x = this.sliders[i].x,
+                                y = this.sliders[i].y,
+                                startx = this.sliders[i].objectParams.curvePoints[0].x,
+                                starty = this.sliders[i].objectParams.curvePoints[0].y
+                        }
+                    }
                     if (new Date() - startDate < secs*1000) {
+                        var q = {x:x,y:y}
+                        var w = {start:{x:startx,y:starty},end:{x:x,y:y}}
+                        ctx.beginPath()
+                        var {x, y} = this.adaptCirclePlacement(w.start.x, w.start.y)
+                        ctx.moveTo(x, y)
+                        var {x, y} = this.adaptCirclePlacement(w.end.x, w.end.y)
+                        ctx.lineTo(x, y)
+                        ctx.stroke()
+                        var x = q.x,y=q.y
+                        
                         var percentage = ((100/(secs*1000))*(new Date()-startDate))/100
                         var {xx, yy} = this.getPositionAlongTheLine(startx, starty, x, y, percentage)
                         ctx.beginPath()
@@ -1105,6 +1131,15 @@
                         ctx.fillStyle = "green"
                         ctx.fill()
                         ctx.closePath()
+                        
+                        
+                        newSliders.push(this.sliders[i])
+                    } else if (this.sliders[i].objectParams.curvePoints.length > this.sliders[i].curvePtsNum+1 ||
+                               this.sliders[i].objectParams.slides > this.sliders[i].curvePtsNum+1) {
+                        if (this.sliders[i].objectParams.slides > this.sliders[i].curvePtsNum+1) {
+                            this.sliders[i].startTime = new Date()
+                        }
+                        this.sliders[i].curvePtsNum++
                         newSliders.push(this.sliders[i])
                     }
                 }
