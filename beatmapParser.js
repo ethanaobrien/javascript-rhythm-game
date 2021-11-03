@@ -80,6 +80,9 @@ async function beatmapParser(file) {
                     beatmapData['[Events]'].image = tokens[2]
                 } else if (tokens[0] == '1' || tokens[0].toLowerCase() == 'video') { // background video
                     tokens[2] = tokens[2].split('"').join('')
+                    if (['flv'].includes(tokens[2].split('.').pop())) { // unsupported video formats
+                        continue
+                    }
                     tokens[2] = URL.createObjectURL(new Blob([await readfile(tokens[2])], {type: 'video/'+tokens[2].split('.').pop()}))
                     beatmapData['[Events]'].video = tokens[2]
                 } else if (tokens[0] == '2') { // break periods
