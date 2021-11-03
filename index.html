@@ -1077,6 +1077,40 @@
                 delete this.spinner
             }
         },
+        getPositionAlongTheLine: function(x1, y1, x2, y2, percentage) {
+            //thanks to https://stackoverflow.com/a/57383437/15318223
+            return {xx : x1 * (1.0 - percentage) + x2 * percentage, yy : y1 * (1.0 - percentage) + y2 * percentage};
+        },
+        drawSliders: function() {
+            var newSliders = []
+            for (var i=0; i<this.sliders.length; i++) {
+                if (this.sliders[i].objectParams.curveType == 'L' || this.sliders[i].objectParams.curveType == 'C') {
+                    if (! this.sliders[i].startTime) {
+                        this.sliders[i].startTime = new Date()
+                        this.sliders[i].totalTime = this.sliders[i].objectParams.Length/(this.beatmap.difficulty.SliderMultiplier*100)*this.beatmap.beatLength
+                    }
+                    var secs = this.sliders[i].totalTime/1000,
+                        startx = this.sliders[i].x,
+                        starty = this.sliders[i].y,
+                        x = this.sliders[i].objectParams.curvePoints[0].x,
+                        y = this.sliders[i].objectParams.curvePoints[0].y,
+                        startDate = this.sliders[i].startTime,
+                        ctx = this.ctx
+                    if (new Date() - startDate < secs*1000) {
+                        var percentage = ((100/(secs*1000))*(new Date()-startDate))/100
+                        var {xx, yy} = this.getPositionAlongTheLine(startx, starty, x, y, percentage)
+                        ctx.beginPath()
+                        var {x, y} = this.adaptCirclePlacement(xx, yy)
+                        ctx.arc(x, y, 40, 0, Math.PI*2, false)
+                        ctx.fillStyle = "green"
+                        ctx.fill()
+                        ctx.closePath()
+                        newSliders.push(this.sliders[i])
+                    }
+                }
+            }
+            this.sliders = newSliders
+        },
         osuPlay: function() {
             if (this.unzipping || (this.videoBack.selected && ! this.videoBack.loaded)) {
                 this.ctx.font = "30px Arial";
@@ -1093,11 +1127,19 @@
             this.checkButtons()
             var newButtons = []
             for (var i=0; i<this.beatmap.buttons.length; i++) {
-                //if (this.getCurrentTime()*1000 > this.beatmap.buttons[i].time-1000 && this.beatmap.buttons[i].objectParams === null) {
-                if (this.getCurrentTime()*1000 > this.beatmap.buttons[i].time-1000 && (this.beatmap.buttons[i].objectParams === null || this.beatmap.buttons[i].type == 1 ||  this.beatmap.buttons[i].type == 2 || this.beatmap.buttons[i].type == 6)) {
+                if (this.getCurrentTime()*1000 > this.beatmap.buttons[i].time-1000 && this.beatmap.buttons[i].objectParams === null) {
+                //if (this.getCurrentTime()*1000 > this.beatmap.buttons[i].time-1000 && (this.beatmap.buttons[i].objectParams === null || this.beatmap.buttons[i].type == 1 ||  this.beatmap.buttons[i].type == 2 || this.beatmap.buttons[i].type == 6)) {
                     this.pendingButtons.push(this.beatmap.buttons[i])
-                //} else if (this.getCurrentTime()*1000 > this.beatmap.buttons[i].time-1000 && (this.beatmap.buttons[i].type == 1 ||  this.beatmap.buttons[i].type == 2 || this.beatmap.buttons[i].type == 6)) {
-                //    this.sliders.push(this.beatmap.buttons[i])
+                } else if (this.getCurrentTime()*1000 > this.beatmap.buttons[i].time-1000 && (this.beatmap.buttons[i].type == 1 ||  this.beatmap.buttons[i].type == 2 || this.beatmap.buttons[i].type == 6)) {
+                    if (this.beatmap.buttons[i].objectParams.curveType == 'L' || this.beatmap.buttons[i].objectParams.curveType == 'C') {
+                        if (this.getCurrentTime()*1000 > this.beatmap.buttons[i].time) {
+                            this.sliders.push(this.beatmap.buttons[i])
+                        } else {
+                            newButtons.push(this.beatmap.buttons[i])
+                        }
+                    } else {
+                        this.pendingButtons.push(this.beatmap.buttons[i])
+                    }
                 } else if (this.getCurrentTime()*1000 > this.beatmap.buttons[i].time && (this.beatmap.buttons[i].type == 3 || this.beatmap.buttons[i].type == 12)) {
                     this.spinner = this.beatmap.buttons[i]
                 } else {
@@ -1105,11 +1147,11 @@
                 }
             }
             this.beatmap.buttons = newButtons
-            if (this.beatmap.timingPoints.length > 0 && this.getCurrentTime()*1000 > this.beatmap.timingPoints[0].time) {
+            if (this.beatmap.timingPoints.length > 0 && this.getCurrentTime()*1000 > this.beatmap.timingPoints[0].time-1000) {
                 // osu Requires the TimingPoints to be chronological
                 var yes = this.beatmap.timingPoints[0]
-                this.beatmap.beatLength = yes.beatLength
                 if (yes.uninherited) {
+                    this.beatmap.beatLength = yes.beatLength
                     this.beatmap.meter = yes.meter
                 } else {
                     this.beatmap.meter = null
@@ -1120,14 +1162,13 @@
             if (this.spinner) {
                 this.drawSpinner()
             }
-            /* // Developer Stats
+            this.drawSliders()
+            
+            
+            // Developer Stats
             this.ctx.font = "30px Arial";
             this.ctx.fillStyle = "black";
             this.ctx.fillText(this.beatmap.buttons.length, 50, 100);
-            
-            this.ctx.font = "30px Arial";
-            this.ctx.fillStyle = "black";
-            this.ctx.fillText(this.pendingButtons.length, 50, 200);
             
             this.ctx.font = "30px Arial";
             this.ctx.fillStyle = "black";
@@ -1135,8 +1176,17 @@
             
             this.ctx.font = "30px Arial";
             this.ctx.fillStyle = "black";
+            this.ctx.fillText(this.pendingButtons.length, 50, 200);
+            
+            this.ctx.font = "30px Arial";
+            this.ctx.fillStyle = "black";
             this.ctx.fillText(Math.round(this.getCurrentTime()*1000), 50, 250);
-            */
+            
+            this.ctx.font = "30px Arial";
+            this.ctx.fillStyle = "black";
+            this.ctx.fillText(this.sliders.length, 50, 300);
+            
+            
             this.ctx.beginPath()
             this.ctx.rect((this.canvas.width/4 * 3) + 125, 20, 200, 50)
             this.ctx.fillStyle = "green"
