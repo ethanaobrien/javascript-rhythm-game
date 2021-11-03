@@ -99,10 +99,11 @@ async function beatmapParser(file) {
                     time: parseInt(tokens[0]), 
                     beatLength: parseInt(tokens[1]),
                     meter: parseInt(tokens[2]),
-                    sampleIndex: parseInt(tokens[3]),
-                    volume: parseInt(tokens[4]),
-                    uninherited: parseInt(tokens[5]),
-                    effects: parseInt(tokens[6])
+                    sampleSet: parseInt(tokens[3]),
+                    sampleIndex: parseInt(tokens[4]),
+                    volume: parseInt(tokens[5]),
+                    uninherited: parseInt(tokens[6]),
+                    effects: parseInt(tokens[7])
                 })
             }
         }
