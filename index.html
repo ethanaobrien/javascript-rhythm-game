@@ -1087,7 +1087,11 @@
                 if (this.sliders[i].objectParams.curveType == 'L' || this.sliders[i].objectParams.curveType == 'C') {
                     if (! this.sliders[i].startTime) {
                         this.sliders[i].curvePtsNum = 0
-                        this.sliders[i].startTime = new Date()
+                        if (! (this.getCurrentTime()*1000 > this.sliders[i].time-1000 && this.getCurrentTime()*1000 < this.sliders[i].time)) {
+                            this.sliders[i].startTime = new Date()
+                        }
+                        this.sliders[i].minusPoints = 0
+                        this.sliders[i].totalPts = 0
                         this.sliders[i].totalTime = this.sliders[i].objectParams.Length/(this.beatmap.difficulty.SliderMultiplier*100)*this.beatmap.beatLength
                     }
                     var secs = this.sliders[i].totalTime/1000,
@@ -1112,7 +1116,33 @@
                                 starty = this.sliders[i].objectParams.curvePoints[0].y
                         }
                     }
-                    if (new Date() - startDate < secs*1000) {
+                    if (this.getCurrentTime()*1000 > this.sliders[i].time-1000 && this.getCurrentTime()*1000 < this.sliders[i].time) {
+                        var q = {x:x,y:y}
+                        var w = {start:{x:startx,y:starty},end:{x:x,y:y}}
+                        ctx.beginPath()
+                        ctx.lineWidth = 3
+                        var {x, y} = this.adaptCirclePlacement(w.start.x, w.start.y)
+                        ctx.moveTo(x, y)
+                        var {x, y} = this.adaptCirclePlacement(w.end.x, w.end.y)
+                        ctx.lineTo(x, y)
+                        ctx.stroke()
+                        var x = q.x,y=q.y
+                        
+                        var x = this.sliders[i].x, y = this.sliders[i].y
+                        this.drawCircle(x, y)
+                        var displacement = this.sliders[i].time - this.getCurrentTime()*1000
+                        var radius = 40
+                        var o = radius + (displacement / 5)
+                        var {x, y} = this.adaptCirclePlacement(x, y)
+                        var ctx = this.ctx
+                        ctx.beginPath()
+                        ctx.arc(x, y, o, 0, Math.PI*2, false)
+                        ctx.stroke()
+                        ctx.closePath()
+                        ctx.lineWidth = 1
+                        newSliders.push(this.sliders[i])
+                    } else if (new Date() - startDate < secs*1000) {
+                        ctx.lineWidth = 3
                         var q = {x:x,y:y}
                         var w = {start:{x:startx,y:starty},end:{x:x,y:y}}
                         ctx.beginPath()
@@ -1122,12 +1152,17 @@
                         ctx.lineTo(x, y)
                         ctx.stroke()
                         var x = q.x,y=q.y
+                        ctx.lineWidth = 1
                         
                         var percentage = ((100/(secs*1000))*(new Date()-startDate))/100
                         var {xx, yy} = this.getPositionAlongTheLine(startx, starty, x, y, percentage)
                         ctx.beginPath()
                         var {x, y} = this.adaptCirclePlacement(xx, yy)
                         ctx.arc(x, y, 40, 0, Math.PI*2, false)
+                        if (! this.zxcPressed && ! this.isTouching(x-40, y-40, 40*2, 40*2)) {
+                            this.sliders[i].minusPoints++
+                        }
+                        this.sliders[i].totalPts++
                         ctx.fillStyle = "green"
                         ctx.fill()
                         ctx.closePath()
@@ -1141,6 +1176,18 @@
                         }
                         this.sliders[i].curvePtsNum++
                         newSliders.push(this.sliders[i])
+                    } else {
+                        if (this.sliders[i].minusPoints == this.sliders[i].totalPts) {
+                            this.stats.push({score: -this.minusScore})
+                            this.changeScore(-(this.minusScore*2)) // It's a slider - That means more minus points
+                        } else if (this.sliders[i].minusPoints == 0) {
+                            this.changeScore(500) // Again, it's a slider - That means more plus points
+                            this.stats.push({score: 500})
+                        } else {
+                            var minusPoints = (this.sliders[i].totalPts - this.sliders[i].minusPoints)*2
+                            this.changeScore(this.addScore - minusPoints)
+                            this.stats.push({score: this.addScore - minusPoints})
+                        }
                     }
                 }
             }
@@ -1167,11 +1214,7 @@
                     this.pendingButtons.push(this.beatmap.buttons[i])
                 } else if (this.getCurrentTime()*1000 > this.beatmap.buttons[i].time-1000 && (this.beatmap.buttons[i].type == 1 ||  this.beatmap.buttons[i].type == 2 || this.beatmap.buttons[i].type == 6)) {
                     if (this.beatmap.buttons[i].objectParams.curveType == 'L' || this.beatmap.buttons[i].objectParams.curveType == 'C') {
-                        if (this.getCurrentTime()*1000 > this.beatmap.buttons[i].time) {
-                            this.sliders.push(this.beatmap.buttons[i])
-                        } else {
-                            newButtons.push(this.beatmap.buttons[i])
-                        }
+                        this.sliders.push(this.beatmap.buttons[i])
                     } else {
                         this.pendingButtons.push(this.beatmap.buttons[i])
                     }
